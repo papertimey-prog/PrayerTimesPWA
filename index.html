@@ -3,40 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salah Tracker</title>
+    <title>Salah Pro</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
-        .card { width: 100%; max-width: 400px; background: #1e1e1e; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        h2 { text-align: center; color: #2ecc71; margin-top: 0; }
+        :root { --primary: #2ecc71; --bg: #121212; --card: #1e1e1e; --text: #ffffff; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
         
-        /* Progress Bar Styles */
-        .progress-container { width: 100%; max-width: 400px; background: #333; border-radius: 10px; height: 10px; margin-bottom: 20px; overflow: hidden; }
-        #progress-fill { height: 100%; background: #2ecc71; width: 0%; transition: width 0.4s ease; }
-        #progress-text { margin-bottom: 10px; font-weight: bold; color: #888; }
+        /* Header & Progress */
+        .header { text-align: center; width: 100%; max-width: 400px; margin-bottom: 20px; }
+        #countdown { font-size: 1.5rem; font-weight: bold; color: var(--primary); margin: 10px 0; }
+        .progress-container { width: 100%; background: #333; border-radius: 10px; height: 8px; overflow: hidden; margin-top: 10px; }
+        #progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.5s ease; }
 
-        .row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #333; }
+        /* Checklist Card */
+        .card { width: 100%; max-width: 400px; background: var(--card); padding: 10px 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .row { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; border-bottom: 1px solid #2d2d2d; transition: all 0.3s; }
         .row:last-child { border-bottom: none; }
-        .info { display: flex; flex-direction: column; }
-        .name { font-size: 1.2rem; font-weight: bold; }
-        .time-label { color: #888; font-size: 0.9rem; }
-        input[type="checkbox"] { width: 25px; height: 25px; accent-color: #2ecc71; cursor: pointer; }
-        button { margin-top: 20px; padding: 12px; width: 100%; max-width: 400px; border-radius: 10px; border: none; background: #2ecc71; color: white; font-weight: bold; cursor: pointer; }
+        
+        /* Highlighting Next Prayer */
+        .next-prayer { border-left: 4px solid var(--primary); padding-left: 15px; background: rgba(46, 204, 113, 0.05); }
+        
+        .name { font-size: 1.1rem; font-weight: 600; }
+        .time-label { color: #888; font-size: 0.85rem; }
+        
+        input[type="checkbox"] { width: 28px; height: 28px; accent-color: var(--primary); cursor: pointer; }
+        
+        .btn-group { width: 100%; max-width: 400px; margin-top: 20px; display: grid; grid-template-columns: 1fr; gap: 10px; }
+        button { padding: 15px; border-radius: 12px; border: none; background: #333; color: white; font-weight: bold; cursor: pointer; }
+        .btn-active { background: var(--primary); }
     </style>
 </head>
 <body>
 
-<h2>Salah Checklist</h2>
-
-<div id="progress-text">Progress: 0%</div>
-<div class="progress-container">
-    <div id="progress-fill"></div>
+<div class="header">
+    <div id="next-label">Next Prayer in</div>
+    <div id="countdown">--:--:--</div>
+    <div class="progress-container"><div id="progress-fill"></div></div>
 </div>
 
-<div class="card" id="checklist">
-    </div>
+<div class="card" id="checklist"></div>
 
-<button id="notifBtn">Enable Notifications</button>
+<div class="btn-group">
+    <button id="notifBtn">🔔 Enable Notifications</button>
+</div>
+
+
 
 <script>
     const prayerData = [
@@ -47,87 +58,98 @@
         { id: 'isha', name: 'Isha', time: '20:00', display: '08:00 PM' }
     ];
 
-    const checklistEl = document.getElementById('checklist');
-    const progressFill = document.getElementById('progress-fill');
-    const progressText = document.getElementById('progress-text');
-
+    // 1. App Core Logic
     function initApp() {
         const lastDate = localStorage.getItem('lastResetDate');
-        const today = new Date().toDateString();
-
-        if (lastDate !== today) {
+        if (lastDate !== new Date().toDateString()) {
             prayerData.forEach(p => localStorage.removeItem(p.id));
-            localStorage.setItem('lastResetDate', today);
+            localStorage.setItem('lastResetDate', new Date().toDateString());
         }
-
-        checklistEl.innerHTML = prayerData.map(p => {
-            const checked = localStorage.getItem(p.id) === 'true' ? 'checked' : '';
-            return `
-                <div class="row">
-                    <div class="info">
-                        <span class="name">${p.name}</span>
-                        <span class="time-label">${p.display}</span>
-                    </div>
-                    <input type="checkbox" id="${p.id}" ${checked} onchange="saveCheck('${p.id}')">
-                </div>
-            `;
-        }).join('');
-        
-        updateProgress();
+        renderChecklist();
+        updateUI();
     }
 
-    window.saveCheck = (id) => {
-        const cb = document.getElementById(id);
-        localStorage.setItem(id, cb.checked);
-        updateProgress();
+    function renderChecklist() {
+        const container = document.getElementById('checklist');
+        container.innerHTML = prayerData.map(p => `
+            <div class="row" id="row-${p.id}">
+                <div class="info">
+                    <div class="name">${p.name}</div>
+                    <div class="time-label">${p.display}</div>
+                </div>
+                <input type="checkbox" id="${p.id}" 
+                    ${localStorage.getItem(p.id) === 'true' ? 'checked' : ''} 
+                    onchange="toggleCheck('${p.id}')">
+            </div>
+        `).join('');
+    }
+
+    window.toggleCheck = (id) => {
+        const val = document.getElementById(id).checked;
+        localStorage.setItem(id, val);
+        if (navigator.vibrate) navigator.vibrate(40); // Haptic feedback
+        updateUI();
     };
 
-    function updateProgress() {
-        const total = prayerData.length;
-        const checked = prayerData.filter(p => localStorage.getItem(p.id) === 'true').length;
-        const percentage = Math.round((checked / total) * 100);
-        
-        progressFill.style.width = percentage + '%';
-        progressText.innerText = `Progress: ${percentage}%`;
-    }
-
-    function checkTime() {
+    // 2. Timer & Highlighting Logic
+    function updateUI() {
         const now = new Date();
-        const currentTime = now.getHours().toString().padStart(2, '0') + ":" + 
-                            now.getMinutes().toString().padStart(2, '0');
+        const currentTimeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+        
+        let nextPrayer = null;
+        
+        // Find next prayer and update progress
+        const checkedCount = prayerData.filter(p => localStorage.getItem(p.id) === 'true').length;
+        document.getElementById('progress-fill').style.width = (checkedCount / 5 * 100) + '%';
 
         prayerData.forEach(p => {
-            if (p.time === currentTime) {
-                sendNotif(p.name, currentTime);
+            const row = document.getElementById(`row-${p.id}`);
+            row.classList.remove('next-prayer');
+            
+            if (!nextPrayer && p.time > currentTimeStr) {
+                nextPrayer = p;
+                row.classList.add('next-prayer');
             }
         });
+
+        // If all prayers passed today, next is Fajr tomorrow
+        if (!nextPrayer) nextPrayer = prayerData[0];
+
+        updateCountdown(nextPrayer);
     }
 
-    function sendNotif(name, time) {
-        if (Notification.permission === 'granted') {
-            navigator.serviceWorker.ready.then(reg => {
-                reg.showNotification(`Time for ${name}`, {
-                    body: `It is now ${time} - Time for Salah.`,
-                    icon: 'https://via.placeholder.com/192',
-                    vibrate: [200, 100, 200]
-                });
-            });
-        }
+    function updateCountdown(next) {
+        const now = new Date();
+        const target = new Date();
+        const [hrs, mins] = next.time.split(':');
+        target.setHours(hrs, mins, 0);
+
+        if (target < now) target.setDate(target.getDate() + 1);
+
+        const diff = target - now;
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+
+        document.getElementById('countdown').innerText = 
+            `${h}h ${m}m ${s}s`;
+        document.getElementById('next-label').innerText = `Next: ${next.name}`;
     }
 
-    setInterval(checkTime, 60000);
+    // 3. System
+    setInterval(updateUI, 1000);
 
     document.getElementById('notifBtn').addEventListener('click', () => {
-        Notification.requestPermission().then(perm => {
-            if (perm === 'granted') alert("Notifications Enabled!");
+        Notification.requestPermission().then(p => {
+            if(p === 'granted') {
+                document.getElementById('notifBtn').innerText = "✅ Notifications On";
+                document.getElementById('notifBtn').classList.add('btn-active');
+            }
         });
     });
 
     initApp();
-
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js');
-    }
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
 </body>
 </html>
