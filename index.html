@@ -3,67 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prayer Times</title>
+    <title>Salah Tracker</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { width: 90%; max-width: 400px; padding: 20px; border: 2px solid #333; border-radius: 15px; margin-bottom: 20px; }
-        .row { display: flex; justify-content: space-between; font-size: 1.5rem; padding: 15px 0; border-bottom: 1px solid #333; }
+        body { font-family: sans-serif; background: #121212; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        .card { width: 100%; max-width: 400px; background: #1e1e1e; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        h2 { text-align: center; color: #2ecc71; margin-top: 0; }
+        
+        /* Progress Bar Styles */
+        .progress-container { width: 100%; max-width: 400px; background: #333; border-radius: 10px; height: 10px; margin-bottom: 20px; overflow: hidden; }
+        #progress-fill { height: 100%; background: #2ecc71; width: 0%; transition: width 0.4s ease; }
+        #progress-text { margin-bottom: 10px; font-weight: bold; color: #888; }
+
+        .row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #333; }
         .row:last-child { border-bottom: none; }
-        .name { color: #888; }
-        .time { font-weight: bold; }
-        button { padding: 15px 30px; font-size: 1rem; border-radius: 10px; border: none; background: #2ecc71; color: white; cursor: pointer; font-weight: bold; }
-        button:active { background: #27ae60; }
+        .info { display: flex; flex-direction: column; }
+        .name { font-size: 1.2rem; font-weight: bold; }
+        .time-label { color: #888; font-size: 0.9rem; }
+        input[type="checkbox"] { width: 25px; height: 25px; accent-color: #2ecc71; cursor: pointer; }
+        button { margin-top: 20px; padding: 12px; width: 100%; max-width: 400px; border-radius: 10px; border: none; background: #2ecc71; color: white; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <div class="row"><span class="name">Fajr</span> <span class="time">05:00 AM</span></div>
-    <div class="row"><span class="name">Dhuhr</span> <span class="time">12:30 PM</span></div>
-    <div class="row"><span class="name">Asr</span> <span class="time">03:45 PM</span></div>
-    <div class="row"><span class="name">Maghrib</span> <span class="time">06:15 PM</span></div>
-    <div class="row"><span class="name">Isha</span> <span class="time">08:00 PM</span></div>
+<h2>Salah Checklist</h2>
+
+<div id="progress-text">Progress: 0%</div>
+<div class="progress-container">
+    <div id="progress-fill"></div>
 </div>
 
-<button id="notifyBtn">Enable Notifications (Every 10s)</button>
+<div class="card" id="checklist">
+    </div>
+
+<button id="notifBtn">Enable Notifications</button>
 
 <script>
-    const btn = document.getElementById('notifyBtn');
+    const prayerData = [
+        { id: 'fajr', name: 'Fajr', time: '05:00', display: '05:00 AM' },
+        { id: 'dhuhr', name: 'Dhuhr', time: '12:30', display: '12:30 PM' },
+        { id: 'asr', name: 'Asr', time: '15:45', display: '03:45 PM' },
+        { id: 'maghrib', name: 'Maghrib', time: '18:15', display: '06:15 PM' },
+        { id: 'isha', name: 'Isha', time: '20:00', display: '08:00 PM' }
+    ];
 
-    btn.addEventListener('click', () => {
-        // Ask for permission
-        Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
-                btn.innerText = "Notifications Active!";
-                btn.style.background = "#333";
-                
-                // Start the 10-second timer
-                setInterval(() => {
-                    showNotification();
-                }, 10000); 
-                
-                // Show one immediately so you know it works
-                showNotification();
-            } else {
-                alert("Permission denied. Please enable notifications in browser settings.");
+    const checklistEl = document.getElementById('checklist');
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+
+    function initApp() {
+        const lastDate = localStorage.getItem('lastResetDate');
+        const today = new Date().toDateString();
+
+        if (lastDate !== today) {
+            prayerData.forEach(p => localStorage.removeItem(p.id));
+            localStorage.setItem('lastResetDate', today);
+        }
+
+        checklistEl.innerHTML = prayerData.map(p => {
+            const checked = localStorage.getItem(p.id) === 'true' ? 'checked' : '';
+            return `
+                <div class="row">
+                    <div class="info">
+                        <span class="name">${p.name}</span>
+                        <span class="time-label">${p.display}</span>
+                    </div>
+                    <input type="checkbox" id="${p.id}" ${checked} onchange="saveCheck('${p.id}')">
+                </div>
+            `;
+        }).join('');
+        
+        updateProgress();
+    }
+
+    window.saveCheck = (id) => {
+        const cb = document.getElementById(id);
+        localStorage.setItem(id, cb.checked);
+        updateProgress();
+    };
+
+    function updateProgress() {
+        const total = prayerData.length;
+        const checked = prayerData.filter(p => localStorage.getItem(p.id) === 'true').length;
+        const percentage = Math.round((checked / total) * 100);
+        
+        progressFill.style.width = percentage + '%';
+        progressText.innerText = `Progress: ${percentage}%`;
+    }
+
+    function checkTime() {
+        const now = new Date();
+        const currentTime = now.getHours().toString().padStart(2, '0') + ":" + 
+                            now.getMinutes().toString().padStart(2, '0');
+
+        prayerData.forEach(p => {
+            if (p.time === currentTime) {
+                sendNotif(p.name, currentTime);
             }
+        });
+    }
+
+    function sendNotif(name, time) {
+        if (Notification.permission === 'granted') {
+            navigator.serviceWorker.ready.then(reg => {
+                reg.showNotification(`Time for ${name}`, {
+                    body: `It is now ${time} - Time for Salah.`,
+                    icon: 'https://via.placeholder.com/192',
+                    vibrate: [200, 100, 200]
+                });
+            });
+        }
+    }
+
+    setInterval(checkTime, 60000);
+
+    document.getElementById('notifBtn').addEventListener('click', () => {
+        Notification.requestPermission().then(perm => {
+            if (perm === 'granted') alert("Notifications Enabled!");
         });
     });
 
-    function showNotification() {
-        const options = {
-            body: 'It is time for Salah (Test Notification)',
-            icon: 'https://via.placeholder.com/192',
-            badge: 'https://via.placeholder.com/192',
-            vibrate: [200, 100, 200]
-        };
-        
-        // Use the Service Worker to show the notification (better for PWAs)
-        navigator.serviceWorker.ready.then(registration => {
-            registration.showNotification('Salah Reminder', options);
-        });
-    }
+    initApp();
 
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js');
