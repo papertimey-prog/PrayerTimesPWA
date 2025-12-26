@@ -1,0 +1,9 @@
+{
+  "name": "Prayer Times",
+  "short_name": "Prayer",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#1a1a1a",
+  "icons": [{ "src": "https://via.placeholder.com/192", "sizes": "192x192", "type": "image/png" }]
+}
