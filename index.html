@@ -1,160 +1,108 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salah Pro Max</title>
+    <title>Salah KSA</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/adhan/3.0.0/Adhan.min.js"></script>
     <style>
-        :root { --primary: #2ecc71; --bg: #121212; --card: #1e1e1e; --text: #ffffff; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
-        .header { text-align: center; width: 100%; max-width: 400px; margin-bottom: 20px; }
-        #countdown { font-size: 2rem; font-weight: bold; color: var(--primary); margin: 5px 0; }
-        .progress-container { width: 100%; background: #333; border-radius: 10px; height: 8px; overflow: hidden; margin: 15px 0; }
-        #progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.5s; }
-        .card { width: 100%; max-width: 400px; background: var(--card); padding: 5px 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; }
-        .row { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; border-bottom: 1px solid #2d2d2d; }
+        body { font-family: sans-serif; background: #121212; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        .card { width: 100%; max-width: 400px; background: #1e1e1e; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); box-sizing: border-box; }
+        h2 { text-align: center; color: #2ecc71; margin-bottom: 5px; }
+        .date-label { text-align: center; color: #888; margin-bottom: 20px; font-size: 0.9rem; width: 100%; }
+        
+        .progress-container { width: 100%; max-width: 400px; background: #333; border-radius: 10px; height: 10px; margin-bottom: 20px; overflow: hidden; }
+        #progress-fill { height: 100%; background: #2ecc71; width: 0%; transition: width 0.4s ease; }
+
+        .row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #333; }
         .row:last-child { border-bottom: none; }
-        .next-prayer { border-left: 4px solid var(--primary); padding-left: 15px; background: rgba(46, 204, 113, 0.05); }
-        .name { font-size: 1.1rem; font-weight: 600; }
-        .time-label { color: #888; font-size: 0.85rem; }
-        input[type="checkbox"] { width: 28px; height: 28px; accent-color: var(--primary); }
-        .location-status { font-size: 0.7rem; color: #666; margin-top: 10px; }
-        button { width: 100%; max-width: 400px; margin-top: 15px; padding: 12px; border-radius: 12px; border: none; background: #333; color: white; font-weight: bold; }
+        .name { font-size: 1.2rem; font-weight: bold; }
+        .time-label { color: #2ecc71; font-weight: bold; }
+        input[type="checkbox"] { width: 25px; height: 25px; accent-color: #2ecc71; cursor: pointer; }
+        
+        button { width: 100%; max-width: 400px; padding: 12px; border-radius: 10px; border: none; background: #333; color: white; font-weight: bold; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <div id="next-label">Setting up location...</div>
-    <div id="countdown">00:00:00</div>
-    <div class="progress-container"><div id="progress-fill"></div></div>
+<h2>Salah Checklist</h2>
+<div class="date-label" id="date-display"></div>
+
+<div class="progress-container">
+    <div id="progress-fill"></div>
 </div>
 
 <div class="card" id="checklist"></div>
 
-<div class="location-status" id="loc-text">Waiting for GPS...</div>
-<button onclick="getLocation()">Update Location</button>
-<button id="notifBtn" style="background: var(--primary);">🔔 Enable Notifications</button>
+<button id="notifBtn">Enable Notifications</button>
 
 <script>
-    let prayerTimes = [];
-    let coords = JSON.parse(localStorage.getItem('userCoords')) || null;
+    // HARDCODED COORDINATES FOR RIYADH, SAUDI ARABIA
+    const KSA_LAT = 24.7136;
+    const KSA_LNG = 46.6753;
 
-    // 1. Get Coordinates
-    function getLocation() {
-        navigator.geolocation.getCurrentPosition(pos => {
-            coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            localStorage.setItem('userCoords', JSON.stringify(coords));
-            document.getElementById('loc-text').innerText = `Location: ${coords.lat.toFixed(2)}, ${coords.lng.toFixed(2)}`;
-            calculateTimes();
-        }, err => alert("Please enable GPS for actual prayer times."));
-    }
-
-    // 2. Calculate Actual Times (Works for any date up to 2027 and beyond)
     function calculateTimes() {
-        if (!coords) return;
-        
         const date = new Date();
-        const coordinates = new adhan.Coordinates(coords.lat, coords.lng);
-        const params = adhan.CalculationMethod.MuslimWorldLeague();
+        document.getElementById('date-display').innerText = date.toDateString();
+        
+        const coordinates = new adhan.Coordinates(KSA_LAT, KSA_LNG);
+        const params = adhan.CalculationMethod.UmmAlQura();
         const pt = new adhan.PrayerTimes(coordinates, date, params);
 
         const format = (t) => t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-        const formatRaw = (t) => t.getHours().toString().padStart(2, '0') + ":" + t.getMinutes().toString().padStart(2, '0');
 
-        prayerTimes = [
-            { id: 'fajr', name: 'Fajr', time: formatRaw(pt.fajr), display: format(pt.fajr), dateObj: pt.fajr },
-            { id: 'dhuhr', name: 'Dhuhr', time: formatRaw(pt.dhuhr), display: format(pt.dhuhr), dateObj: pt.dhuhr },
-            { id: 'asr', name: 'Asr', time: formatRaw(pt.asr), display: format(pt.asr), dateObj: pt.asr },
-            { id: 'maghrib', name: 'Maghrib', time: formatRaw(pt.maghrib), display: format(pt.maghrib), dateObj: pt.maghrib },
-            { id: 'isha', name: 'Isha', time: formatRaw(pt.isha), display: format(pt.isha), dateObj: pt.isha }
+        const prayerTimes = [
+            { id: 'fajr', name: 'Fajr', display: format(pt.fajr) },
+            { id: 'dhuhr', name: 'Dhuhr', display: format(pt.dhuhr) },
+            { id: 'asr', name: 'Asr', display: format(pt.asr) },
+            { id: 'maghrib', name: 'Maghrib', display: format(pt.maghrib) },
+            { id: 'isha', name: 'Isha', display: format(pt.isha) }
         ];
 
-        renderApp();
+        renderApp(prayerTimes);
     }
 
-    // 3. UI and Checklist logic
-    function renderApp() {
+    function renderApp(prayerTimes) {
         const lastDate = localStorage.getItem('lastResetDate');
-        if (lastDate !== new Date().toDateString()) {
-            prayerTimes.forEach(p => localStorage.removeItem(p.id));
-            localStorage.setItem('lastResetDate', new Date().toDateString());
+        const todayStr = new Date().toDateString();
+
+        if (lastDate !== todayStr) {
+            ['fajr','dhuhr','asr','maghrib','isha'].forEach(id => localStorage.removeItem(id));
+            localStorage.setItem('lastResetDate', todayStr);
         }
 
         const container = document.getElementById('checklist');
         container.innerHTML = prayerTimes.map(p => `
-            <div class="row" id="row-${p.id}">
+            <div class="row">
                 <div class="info">
                     <div class="name">${p.name}</div>
                     <div class="time-label">${p.display}</div>
                 </div>
-                <input type="checkbox" id="${p.id}" ${localStorage.getItem(p.id) === 'true' ? 'checked' : ''} onchange="toggleCheck('${p.id}')">
+                <input type="checkbox" id="${p.id}" ${localStorage.getItem(p.id) === 'true' ? 'checked' : ''} onchange="saveCheck('${p.id}')">
             </div>
         `).join('');
-        updateUI();
+        updateProgress();
     }
 
-    window.toggleCheck = (id) => {
+    window.saveCheck = (id) => {
         localStorage.setItem(id, document.getElementById(id).checked);
-        if (navigator.vibrate) navigator.vibrate(40);
-        updateUI();
+        updateProgress();
     };
 
-    function updateUI() {
-        const now = new Date();
-        let next = null;
-
-        // Update Progress
-        const done = prayerTimes.filter(p => localStorage.getItem(p.id) === 'true').length;
-        document.getElementById('progress-fill').style.width = (done / 5 * 100) + '%';
-
-        // Highlight next
-        prayerTimes.forEach(p => {
-            const row = document.getElementById(`row-${p.id}`);
-            row.classList.remove('next-prayer');
-            if (!next && p.dateObj > now) {
-                next = p;
-                row.classList.add('next-prayer');
-            }
-        });
-
-        if (!next) next = prayerTimes[0]; 
-        
-        // Countdown
-        let diff = next.dateObj - now;
-        if (diff < 0) diff += 86400000; // Tomorrow
-        const h = Math.floor(diff / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
-        
-        document.getElementById('countdown').innerText = `${h}h ${m}m ${s}s`;
-        document.getElementById('next-label').innerText = `Next: ${next.name}`;
-
-        // Notification check (exact minute)
-        const currentMin = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-        prayerTimes.forEach(p => {
-            if (p.time === currentMin && !window.lastNotifiedTime !== currentMin) {
-                sendNotif(p.name);
-                window.lastNotifiedTime = currentMin;
-            }
-        });
+    function updateProgress() {
+        const ids = ['fajr','dhuhr','asr','maghrib','isha'];
+        const checked = ids.filter(id => localStorage.getItem(id) === 'true').length;
+        document.getElementById('progress-fill').style.width = (checked / 5 * 100) + '%';
     }
 
-    function sendNotif(name) {
-        if (Notification.permission === 'granted') {
-            navigator.serviceWorker.ready.then(reg => {
-                reg.showNotification(`Time for ${name}`, { icon: 'https://via.placeholder.com/192', vibrate: [200, 100, 200] });
-            });
-        }
-    }
+    // Run immediately
+    calculateTimes();
 
-    setInterval(updateUI, 1000);
-    if (coords) calculateTimes(); else getLocation();
-    
-    document.getElementById('notifBtn').onclick = () => Notification.requestPermission();
+    document.getElementById('notifBtn').onclick = () => {
+        Notification.requestPermission().then(p => { if(p==='granted') alert("Notifications Active"); });
+    };
+
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
 </body>
